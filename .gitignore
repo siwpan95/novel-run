@@ -1,0 +1,26 @@
+# ── 运行态产物（每次 play / lint / e2e 都会改写，不入库）──
+saves/
+
+# ── Python 缓存 ──
+__pycache__/
+*.py[cod]
+
+# ── WorkBuddy 工作区数据（含本机绝对路径与自动化调度记录）──
+.workbuddy/
+
+# ── 备份文件（词库清洗前的原始副本，体积大且为中间产物）──
+*.bak
+*.bak_*
+.backup_originals/
+
+# ── 临时验证产物 ──
+_fix_tmp/
+_qa_tmp/
+_sec_tmp/
+
+# ── 编辑器 / 系统 ──
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini

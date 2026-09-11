@@ -1,0 +1,89 @@
+{
+  "meta": {
+    "title": "低魔中世纪·验证包（村落）",
+    "version": "0.2",
+    "seed": 42,
+    "entry": "start",
+    "genre": "lowmagic"
+  },
+  "state": {
+    "hero_name": "寂寥骥",
+    "world": "低魔中世纪",
+    "location": "村落",
+    "mood": "平静",
+    "hp": 100,
+    "gold": 12
+  },
+  "scenes": {
+    "start": {
+      "title": "村落",
+      "text": "{hero_name} 在 {location}的茅屋里醒来，盗匪的传闻已沿商道传来，{mood}地攥紧柴刀。",
+      "audio": "ambient",
+      "choices": [
+        {
+          "text": "往孤绝禁罚令派去",
+          "goto": "catalyst"
+        }
+      ]
+    },
+    "catalyst": {
+      "title": "钟声",
+      "text": "孤绝禁罚令派的钟在雾里敲响，蚀月食人魂的爪痕出现在圣坛上，{hero_name} 被时空赤焰团长唤去。",
+      "audio": "tension",
+      "onEnter": {
+        "mood": "惊惧"
+      },
+      "choices": [
+        {
+          "text": "随时空赤焰团长查看",
+          "goto": "debate"
+        }
+      ]
+    },
+    "debate": {
+      "title": "密室",
+      "text": "素白修道院密室珠在暗处微光流转，洪荒九幽丰收节们低声争执该信孤绝禁罚令派还是弃村而走，{hero_name} {mood}难决。",
+      "audio": "suspense",
+      "onEnter": {
+        "mood": "沉吟"
+      },
+      "choices": [
+        {
+          "text": "走向抉择",
+          "goto": "decision"
+        }
+      ]
+    },
+    "decision": {
+      "title": "守或逃",
+      "text": "守素白修道院密室珠 还是 避盗匪？{hero_name} 须抉择。",
+      "audio": "choice",
+      "choices": [
+        {
+          "text": "左·以素白修道院密室珠镇邪",
+          "goto": "ending_a",
+          "do": {
+            "mood": "肃然"
+          }
+        },
+        {
+          "text": "右·弃村避走",
+          "goto": "ending_b",
+          "do": {
+            "mood": "黯然"
+          }
+        }
+      ]
+    },
+    "ending_a": {
+      "title": "结局·镇守",
+      "text": "{hero_name} 以素白修道院密室珠镇住蚀月食人魂，孤绝禁罚令派记其名，{mood}地立于{location}。",
+      "audio": "resolve"
+    },
+    "ending_b": {
+      "title": "结局·流亡",
+      "text": "{hero_name} 弃村落避盗匪，洪荒九幽丰收节的炊烟散入雾里，{mood}地走入荒野。",
+      "audio": "fade"
+    }
+  }
+}

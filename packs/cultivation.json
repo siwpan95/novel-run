@@ -1,0 +1,88 @@
+{
+  "meta": {
+    "title": "修仙·验证包（昆仑墟）",
+    "version": "0.2",
+    "seed": 42,
+    "entry": "start",
+    "genre": "cultivation"
+  },
+  "state": {
+    "hero_name": "邵骥",
+    "world": "诸天",
+    "location": "昆仑墟",
+    "mood": "平静",
+    "hp": 100
+  },
+  "scenes": {
+    "start": {
+      "title": "昆仑墟外门",
+      "text": "{hero_name} 身为金灵根修士，于{location}外门起步，{mood}地吐纳灵气。",
+      "audio": "ambient",
+      "choices": [
+        {
+          "text": "入秘境",
+          "goto": "catalyst"
+        }
+      ]
+    },
+    "catalyst": {
+      "title": "秘境开",
+      "text": "{location}秘境开启，九霄塔现世，{hero_name} 随队入极品灵石探夺。",
+      "audio": "tension",
+      "onEnter": {
+        "mood": "凝重"
+      },
+      "choices": [
+        {
+          "text": "深入",
+          "goto": "debate"
+        }
+      ]
+    },
+    "debate": {
+      "title": "心魔",
+      "text": "秘境探宝当前，{hero_name} 在瓶颈前犹豫，{mood}难平。",
+      "audio": "suspense",
+      "onEnter": {
+        "mood": "沉吟"
+      },
+      "choices": [
+        {
+          "text": "走向抉择",
+          "goto": "decision"
+        }
+      ]
+    },
+    "decision": {
+      "title": "夺或守",
+      "text": "夺九霄塔 还是 守{location}？{hero_name} 须抉择。",
+      "audio": "choice",
+      "choices": [
+        {
+          "text": "夺·结九霄塔道果",
+          "goto": "ending_a",
+          "do": {
+            "mood": "炽烈"
+          }
+        },
+        {
+          "text": "守·退归昆仑墟",
+          "goto": "ending_b",
+          "do": {
+            "mood": "淡然"
+          }
+        }
+      ]
+    },
+    "ending_a": {
+      "title": "结局·飞升",
+      "text": "{hero_name} 结九霄塔道果，渡雷劫飞升，{mood}地冲霄。",
+      "audio": "resolve"
+    },
+    "ending_b": {
+      "title": "结局·散功",
+      "text": "{hero_name} 散功归田，秘境探宝中抽身，{mood}地归于平凡。",
+      "audio": "fade"
+    }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "name": "novel-run",
+  "version": "0.1.0",
+  "description": "novel ↔ dict-scene-engine 集成路线独立验证项目（零依赖：Python 规模生成器 → JSON 场景包 → Node 惰性运行时）",
+  "type": "module",
+  "main": "run/runtime.js",
+  "bin": {
+    "novel-run": "./run/runtime.js"
+  },
+  "scripts": {
+    "info":   "node run/runtime.js info --pack packs/scale-pack.json",
+    "scenes": "node run/runtime.js scenes --pack packs/scale-pack.json",
+    "lint":   "node run/runtime.js lint --pack packs/scale-pack.json",
+    "play":   "node run/runtime.js play --pack packs/scale-pack.json --input \"1,1,1,1\"",
+    "stats":  "node run/runtime.js stats --pack packs/scale-pack.json",
+    "gen":    "python gen/scale.py --out packs/scale-pack.json --chapters 8 --beats 4 --seed 42",
+    "gen:4e3w": "python gen/scale.py --out packs/scale-4e3w.json --chapters 6 --beats 4 --seed 7 --endings 4 --worlds 3",
+    "gen:stress": "python gen/scale.py --stress --out packs/scale-stress.json",
+    "e2e":    "node run/e2e_scale.js && node run/e2e_scale.js packs/scale-4e3w.json",
+    "test":   "node tests/e2e.mjs && node run/e2e_scale.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT",
+  "author": "全哥 (siwpan)",
+  "repository": {
+    "type": "git",
+    "url": "https://gitee.com/siwpan/allin"
+  }
+}

@@ -1,0 +1,88 @@
+{
+  "meta": {
+    "title": "武侠·验证包（幽蓝灵鹫庄）",
+    "version": "0.2",
+    "seed": 42,
+    "entry": "start",
+    "genre": "wuxia"
+  },
+  "state": {
+    "hero_name": "雷宛",
+    "world": "武侠",
+    "location": "巴蜀",
+    "mood": "平静",
+    "hp": 100
+  },
+  "scenes": {
+    "start": {
+      "title": "巴蜀·幽蓝灵鹫庄山门",
+      "text": "{hero_name} 在 巴蜀的幽蓝灵鹫庄山门醒来，{mood}地握着铁臂钩。",
+      "audio": "ambient",
+      "choices": [
+        {
+          "text": "听长老讲规矩",
+          "goto": "catalyst"
+        }
+      ]
+    },
+    "catalyst": {
+      "title": "立规",
+      "text": "幽蓝灵鹫庄长老言：沉渊玄黄刺客不可废。{hero_name} 演练八卦刀法，铁臂钩在鞘中轻鸣。",
+      "audio": "tension",
+      "onEnter": {
+        "mood": "凝重"
+      },
+      "choices": [
+        {
+          "text": "记下这一式",
+          "goto": "debate"
+        }
+      ]
+    },
+    "debate": {
+      "title": "夜雨",
+      "text": "夜雨打在巴蜀的青石上，{hero_name} 思量沉渊玄黄刺客与侠义，{mood}难平。",
+      "audio": "suspense",
+      "onEnter": {
+        "mood": "沉吟"
+      },
+      "choices": [
+        {
+          "text": "走向岔路",
+          "goto": "decision"
+        }
+      ]
+    },
+    "decision": {
+      "title": "抉择",
+      "text": "岔路当前：左取八卦刀法，右守幽蓝灵鹫庄。{hero_name} 必须选。",
+      "audio": "choice",
+      "choices": [
+        {
+          "text": "左·以八卦刀法了结恩怨",
+          "goto": "ending_a",
+          "do": {
+            "mood": "灼热"
+          }
+        },
+        {
+          "text": "右·守幽蓝灵鹫庄归隐",
+          "goto": "ending_b",
+          "do": {
+            "mood": "平静"
+          }
+        }
+      ]
+    },
+    "ending_a": {
+      "title": "结局·剑名",
+      "text": "{hero_name} 以八卦刀法了结恩怨，幽蓝灵鹫庄之名传遍巴蜀，{mood}如焰。",
+      "audio": "resolve"
+    },
+    "ending_b": {
+      "title": "结局·袖手",
+      "text": "{hero_name} 弃铁臂钩归隐，沉渊玄黄刺客化作闲谈，{mood}地转身离去。",
+      "audio": "fade"
+    }
+  }
+}

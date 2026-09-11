@@ -1,0 +1,88 @@
+{
+  "meta": {
+    "title": "历史都市·验证包（唐·长安）",
+    "version": "0.2",
+    "seed": 42,
+    "entry": "start",
+    "genre": "historical"
+  },
+  "state": {
+    "hero_name": "邵骥",
+    "world": "唐·长安",
+    "location": "平康坊",
+    "mood": "平静",
+    "hp": 100
+  },
+  "scenes": {
+    "start": {
+      "title": "平康坊",
+      "text": "{hero_name} 自唐·长安的{location}门走出，晨鼓刚歇，{mood}地望向朱雀大街。",
+      "audio": "ambient",
+      "choices": [
+        {
+          "text": "往西市去",
+          "goto": "catalyst"
+        }
+      ]
+    },
+    "catalyst": {
+      "title": "金市风波",
+      "text": "西市金市里，大食客商的一桩胡饼官司惹了风波，{hero_name} 被京兆尹卷入。",
+      "audio": "tension",
+      "onEnter": {
+        "mood": "凝重"
+      },
+      "choices": [
+        {
+          "text": "随差役回衙门",
+          "goto": "debate"
+        }
+      ]
+    },
+    "debate": {
+      "title": "盘诘",
+      "text": "大雁塔下，京兆尹差役盘问，{hero_name} 在{location}中思忖，{mood}难决。",
+      "audio": "suspense",
+      "onEnter": {
+        "mood": "沉吟"
+      },
+      "choices": [
+        {
+          "text": "走向抉择",
+          "goto": "decision"
+        }
+      ]
+    },
+    "decision": {
+      "title": "去留",
+      "text": "{location}坊与东市（都会市）之间，{hero_name} 须择一落脚。",
+      "audio": "choice",
+      "choices": [
+        {
+          "text": "留·据唐·长安律断案",
+          "goto": "ending_a",
+          "do": {
+            "mood": "畅快"
+          }
+        },
+        {
+          "text": "走·隐入宵禁",
+          "goto": "ending_b",
+          "do": {
+            "mood": "淡泊"
+          }
+        }
+      ]
+    },
+    "ending_a": {
+      "title": "结局·扬名",
+      "text": "{hero_name} 据唐·长安律断案，名动大雁塔，{mood}地扬名。",
+      "audio": "resolve"
+    },
+    "ending_b": {
+      "title": "结局·隐市",
+      "text": "{hero_name} 隐入市井，宵禁里再无此人，{mood}地消失在夜市灯火中。",
+      "audio": "fade"
+    }
+  }
+}

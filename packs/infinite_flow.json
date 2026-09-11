@@ -1,0 +1,90 @@
+{
+  "meta": {
+    "title": "无限流·验证包（休整区）",
+    "version": "0.2",
+    "seed": 42,
+    "entry": "start",
+    "genre": "infinite_flow"
+  },
+  "state": {
+    "hero_name": "洪媛",
+    "world": "无限流",
+    "location": "休整区",
+    "mood": "平静",
+    "hp": 100,
+    "points": 20
+  },
+  "scenes": {
+    "start": {
+      "title": "休整区",
+      "text": "{hero_name} 在 {location} 的冷光下面板亮起，{mood}地望向刚弹出的任务。",
+      "audio": "ambient",
+      "choices": [
+        {
+          "text": "进入极光生死副本暗线",
+          "goto": "catalyst"
+        }
+      ]
+    },
+    "catalyst": {
+      "title": "副本开启",
+      "text": "极光生死副本暗线的门在身后合拢，畸变体的轮廓在暗处成形，{hero_name} 握紧刚兑换的幽蓝黄泉装备兑换。",
+      "audio": "tension",
+      "onEnter": {
+        "mood": "紧绷"
+      },
+      "choices": [
+        {
+          "text": "按无相裂空系统提示推进",
+          "goto": "debate"
+        }
+      ]
+    },
+    "debate": {
+      "title": "抉择前夜",
+      "text": "新人低声争执：是靠幽蓝黄泉装备兑换硬闯，还是留一手？{hero_name} 在{location}里{mood}难决。",
+      "audio": "suspense",
+      "onEnter": {
+        "mood": "沉吟"
+      },
+      "choices": [
+        {
+          "text": "走向抉择",
+          "goto": "decision"
+        }
+      ]
+    },
+    "decision": {
+      "title": "生或死",
+      "text": "前方岔开：左夺幽蓝黄泉装备兑换，右守{location}。{hero_name} 必须选。",
+      "audio": "choice",
+      "choices": [
+        {
+          "text": "左·以幽蓝黄泉装备兑换了结",
+          "goto": "ending_a",
+          "do": {
+            "mood": "灼热",
+            "points": 10
+          }
+        },
+        {
+          "text": "右·守{location}归队",
+          "goto": "ending_b",
+          "do": {
+            "mood": "平静"
+          }
+        }
+      ]
+    },
+    "ending_a": {
+      "title": "结局·通关",
+      "text": "{hero_name} 以幽蓝黄泉装备兑换了结极光生死副本暗线，畸变体退去，{mood}如焰地回到{location}。",
+      "audio": "resolve"
+    },
+    "ending_b": {
+      "title": "结局·退场",
+      "text": "{hero_name} 弃幽蓝黄泉装备兑换归队，新人的喧声远了，{mood}地隐入休整区的白光。",
+      "audio": "fade"
+    }
+  }
+}
