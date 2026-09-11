@@ -19,6 +19,8 @@
 import json
 import os
 import random
+import re
+import string
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -136,14 +138,45 @@ HOOK_JUNK = (
     '模板', '素材', '爆款', '作文', '淘宝', '淘寶', '速成', '開頭', '开头', '鉤子', '钩子',
     '文案', '起號', '起号', '教程', '写小说', '怎麼', '怎么用', '新手', '提供', '扔进事件',
     '情节片段', '串联成故事', '存储成了', '通用模板', '好物網', '好物网',
+    # 元评论/工具标签类（实测残留："去AI"）
+    '去AI', '去AI化', '标签',
 )
 
 # 钩子/hook 中需剔除的「异常字符」（超位码点且非全角标点 → 如 𝕏 U+1D54F 等抓取残留）
 _HOOK_BAD_CHARS = set('乴乥乩乲乮丬乣乨乬𝕏𝕐𝕒𝕓')
 
+# 钩子池中的「网页/广告/版权」残留 —— 联网抓取扩充时混入，此前未被拦截。
+# 离线审计实测命中：'广告投放：www.oceanengine.com'、'2006-2022www.17k.comAllRightsReserved…'、
+# '写书{location.href=…}充值' 等。用正则而非单字，避免误伤合法剧情钩子。
+_HOOK_URL_AD_RE = re.compile(
+    r'(www\.|https?://|\.com|\.cn|\.net|allrights|copyright|版权|广告|投放|招商|投稿|知识星球|公众号|微信号)',
+    re.I,
+)
+
+# ── 模板槽位白名单 ──
+# scene_frame 模板只允许使用下列槽位。渲染前用 string.Formatter 校验字段名，
+# 含未知槽位的模板直接剔除 —— 否则渲染时必抛 KeyError 并被 except 吞掉，
+# 静默回退到同一句兜底文案（离线审计实测：7 条模板中 3 条用了未定义的
+# {auditory}/{adj}，导致实际生效仅 4/7、约 45% 的开场是同一句）。
+SLOT_KEYS = frozenset((
+    'world', 'char', 'landmark', 'visual', 'weather', 'crowd', 'ambient',
+    'body_reaction', 'expression', 'attacker', 'defender', 'terrain',
+    'modifier', 'aura', 'scope', 'name', 'auditory', 'adj',
+))
+
+
+def _template_fields(t):
+    """提取 str.format 模板中的字段名。格式非法时返回 None（调用方据此剔除）。"""
+    try:
+        return {f for _, f, _, _ in string.Formatter().parse(t) if f}
+    except (ValueError, AttributeError):
+        return None
+
 
 def _is_garbage(x):
     if not isinstance(x, str) or not x.strip():
+        return True
+    if _HOOK_URL_AD_RE.search(x):    # 网页/广告/版权残留（术语池同样会混入，实测"全息广告"等）
         return True
     if any(c.isdigit() for c in x):  # 编号/时间戳/年份（2026-06-29、20XX、1.英雄）一律视为垃圾
         return True
@@ -306,6 +339,8 @@ class Prose:
                         continue
                     if any(j in x for j in HOOK_JUNK):
                         continue
+                    if _HOOK_URL_AD_RE.search(x):
+                        continue          # 网页/广告/版权残留（离线审计实测 13 条）
                     if any(c in _HOOK_BAD_CHARS for c in x):
                         continue
                     # 剔除含异常超位字符（非全角标点）的钩子（如 𝕏 U+1D54F 抓取残留）
@@ -330,6 +365,19 @@ class Prose:
                         # novel 实际存的是单条字符串，统一规范为列表
                         self.body_reaction[k] = [v]
 
+        # 5b) 五感兜底（sense_fallbacks）—— 供 scene_frame 的 {auditory} 槽位使用
+        self.sense_fallbacks = {}
+        self.auditory_pool = []
+        sfb = os.path.join(WB, 'voice', 'voice_helpers_sense_fallbacks.json')
+        if os.path.exists(sfb):
+            d = json.load(open(sfb, encoding='utf-8'))
+            inner = d.get('sense_fallbacks', d)
+            if isinstance(inner, dict):
+                self.sense_fallbacks = {k: v for k, v in inner.items()
+                                        if isinstance(v, str) and v.strip()}
+            self.auditory_pool = [v for k, v in self.sense_fallbacks.items()
+                                  if k in ('auditory', 'silence')]
+
         # 6) Rashomon 多视角
         rj = os.path.join(WB, 'narrative', 'rashomon.json')
         if os.path.exists(rj):
@@ -341,13 +389,17 @@ class Prose:
         # 7) 场景框架模板（novel 的 voice 主来源，保证开场语法正确，不受词库污染影响）
         #    只保留含 {slot} 占位符的真实模板；source 中有 '复制'/'汉语描写词汇'/'模板' 等孤立标签条目需剔除。
         sf = os.path.join(WB, 'templates', 'scene_frame.json')
+        self.scene_frame = []
         if os.path.exists(sf):
             d = json.load(open(sf, encoding='utf-8'))
             tmpls = d.get('templates', d if isinstance(d, list) else [])
-            self.scene_frame = [x for x in tmpls
-                                if isinstance(x, str) and '{' in x and '}' in x]
-        else:
-            self.scene_frame = []
+            for x in tmpls:
+                if not isinstance(x, str) or '{' not in x or '}' not in x:
+                    continue                     # 孤立标签条目（'复制' / '汉语描写词汇' / '模板'）
+                flds = _template_fields(x)
+                if not flds or (flds - SLOT_KEYS):
+                    continue                     # 格式非法 / 含未知槽位 → 剔除，避免静默回退兜底句
+                self.scene_frame.append(x)
 
         # 8) 地点/形容词词库（用于填充模板 slot，需清洗）—— 各子列表同样头部截取
         vb = os.path.join(WB, 'vocab')
@@ -438,6 +490,11 @@ class Prose:
     def _adj_phrase(self):
         return self.adj() or '沉静'
 
+    def _auditory(self):
+        """{auditory} 槽位：取自 sense_fallbacks 的听觉/静默通道，缺失时给一句兜底。"""
+        pool = self.auditory_pool or ['四周静得能听见自己的心跳']
+        return self.rng.choice(pool)
+
     def opening(self, world, hero='他'):
         """用 novel 的 scene_frame 模板生成语法正确的开场；slot 由清洗后的词库填充，不受词库污染影响。"""
         if self.scene_frame:
@@ -458,10 +515,13 @@ class Prose:
                 'aura': self.term(world, 1)[0],
                 'scope': self.term(world, 1)[0],
                 'name': hero,
+                # 上游 scene_frame 另含 {auditory} / {adj} 两个槽位（此前缺失 → 3/7 模板静默回退）
+                'auditory': self._auditory(),
+                'adj': self._adj_phrase(),
             }
             try:
                 return self.rng.choice(self.scene_frame).format(**slots)
-            except (KeyError, IndexError):
+            except (KeyError, IndexError, AttributeError, ValueError, TypeError):
                 pass
         # 兜底：用题材术语拼一句
         t = self.term(world, 1)[0]

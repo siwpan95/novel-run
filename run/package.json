@@ -4,9 +4,9 @@
   "description": "DSE 风格场景运行时（JSON 惰性加载 + 插值 + 程序化音频 + 分支多结局），用于验证 novel↔DSE 集成路线",
   "type": "module",
   "scripts": {
-    "info":  "node runtime.js info --pack ../packs/scale-pack.json",
-    "lint":  "node runtime.js lint --pack ../packs/scale-pack.json",
-    "play":  "node runtime.js play --pack ../packs/scale-pack.json"
+    "info":  "node runtime.js info --pack packs/scale-pack.json",
+    "lint":  "node runtime.js lint --pack packs/scale-pack.json",
+    "play":  "node runtime.js play --pack packs/wuxia.json --input \"1,1,1,1\""
   },
   "license": "MIT"
 }

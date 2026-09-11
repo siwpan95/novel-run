@@ -2,6 +2,12 @@
 # -*- coding: utf-8 -*-
 """迷你世界/角色/节拍模型 —— 对应 novel 的 WorldState / CharacterSim / BeatOrchestrator。
 
+⚠️ **未接线（dead module）**：本模块当前**没有被任何脚本 import**。
+   P0 阶段的题材包由 `gen/generate.py` 直接构建，P3 的规模生成由 `gen/scale.py`
+   （其中另有一套同名但独立演进的 `WorldState`）承担。此处保留仅为记录早期
+   验证思路，**不是**运行路径的一部分；如需清理可直接删除本文件。
+   注意不要与 `gen/scale.py` 中的 `WorldState` 混淆（那一套是活代码）。
+
 仅用标准库，零依赖。目的是在独立项目里验证「novel 生成 → DSE 运行时」路线中
 生成侧需要的能力：
   - WorldState：空间模型（地点 + 描述），可切换当前地点

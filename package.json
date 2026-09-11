@@ -11,7 +11,7 @@
     "info":   "node run/runtime.js info --pack packs/scale-pack.json",
     "scenes": "node run/runtime.js scenes --pack packs/scale-pack.json",
     "lint":   "node run/runtime.js lint --pack packs/scale-pack.json",
-    "play":   "node run/runtime.js play --pack packs/scale-pack.json --input \"1,1,1,1\"",
+    "play":   "node run/runtime.js play --pack packs/wuxia.json --input \"1,1,1,1\"",
     "stats":  "node run/runtime.js stats --pack packs/scale-pack.json",
     "gen":    "python gen/scale.py --out packs/scale-pack.json --chapters 8 --beats 4 --seed 42",
     "gen:4e3w": "python gen/scale.py --out packs/scale-4e3w.json --chapters 6 --beats 4 --seed 7 --endings 4 --worlds 3",

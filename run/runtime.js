@@ -6,12 +6,12 @@
 // P1：状态插值 {var} + 进入场景触发 audio 音效标记
 // P2：分支 choices 驱动 → 多结局抵达 → 存档 + 结局统计
 //
-// CLI：
-//   node runtime.js info   --pack packs/demo-pack.json
-//   node runtime.js scenes --pack packs/demo-pack.json
-//   node runtime.js lint   --pack packs/demo-pack.json
-//   node runtime.js play   --pack packs/demo-pack.json --input "1,1,1,1"
-//   node runtime.js stats  --pack packs/demo-pack.json   # N 路结局跨游玩统计
+// CLI（--pack 省略时默认 packs/scale-pack.json；路径以仓库根为基准）：
+//   node runtime.js info                       # 只读查询
+//   node runtime.js scenes
+//   node runtime.js lint
+//   node runtime.js play --input "1,1,1,1"
+//   node runtime.js stats                      # N 路结局跨游玩统计
 
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
@@ -48,8 +48,23 @@ function validatePack(pack) {
 }
 
 function loadPack(path) {
-  const raw = readFileSync(resolve(path), 'utf8')
-  const pack = JSON.parse(raw)
+  // 路径以「仓库根」为基准解析：此前的 resolve(path) 依赖 CWD，从别处调用 runtime.js
+  // 时会找不到 packs/；绝对路径仍原样生效（path.resolve 遇到绝对段会重置）。
+  const abs = resolve(__dirname, '..', path)
+  let raw
+  try {
+    raw = readFileSync(abs, 'utf8')
+  } catch (e) {
+    if (e.code === 'ENOENT') throw new Error(`场景包不存在: ${abs}`)
+    if (e.code === 'EISDIR') throw new Error(`--pack 指向的是目录而非文件: ${abs}`)
+    throw new Error(`读取场景包失败: ${e.message}`)
+  }
+  let pack
+  try {
+    pack = JSON.parse(raw)
+  } catch (e) {
+    throw new Error(`场景包不是合法 JSON（${abs}）: ${e.message}`)
+  }
   if (!isPlainObject(pack.scenes)) {
     throw new Error('场景包缺少 scenes 字段（或类型不是普通对象）')
   }
@@ -551,7 +566,7 @@ function cmdStats(pack) {
 async function main() {
   const args = process.argv.slice(2)
   const cmd = args[0]
-  let packPath = 'packs/demo-pack.json'
+  let packPath = 'packs/scale-pack.json'   // 默认包（原为已删除的 packs/demo-pack.json）
   let inputArg = undefined
   for (let i = 1; i < args.length; i++) {
     if (args[i] === '--pack') packPath = args[++i]
@@ -574,6 +589,11 @@ async function main() {
 // 既可作为 CLI 运行，也可被 e2e 等脚本 require/import 复用 lint / loadPack（不触发 CLI）
 const _isMain = !!process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])
 if (_isMain) {
-  main().catch((e) => { console.error(e); process.exit(1) })
+  main().catch((e) => {
+    // 只输出一行可读错误；完整堆栈需 NOVEL_RUN_DEBUG=1（此前一律裸露 Node 堆栈与本机绝对路径）
+    if (process.env.NOVEL_RUN_DEBUG) console.error(e)
+    else console.error(`[错误] ${e && e.message ? e.message : String(e)}`)
+    process.exit(typeof e?.exitCode === 'number' ? e.exitCode : 1)
+  })
 }
 export { lint, loadPack, isEnding }
