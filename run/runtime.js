@@ -23,25 +23,57 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const SAVES = resolve(__dirname, '..', 'saves')
 
 // ── P0：惰性加载（非 import） ──
+// packs/*.json 是不可信输入：结构非法的包此前会让 lint/play 以 TypeError 崩栈
+// （choices 为字符串 → `.map is not a function`；choice 缺 goto → `g.startsWith is not a function`）。
+// 这里在加载期做一次结构校验，把「运行时崩栈」提前成「带清单的可读错误」。
+const isPlainObject = (v) => v != null && typeof v === 'object' && !Array.isArray(v)
+
+function validatePack(pack) {
+  const errs = []
+  for (const [id, sc] of Object.entries(pack.scenes)) {
+    if (!isPlainObject(sc)) { errs.push(`${id}: 场景必须是对象`); continue }
+    if (sc.choices != null && !Array.isArray(sc.choices)) errs.push(`${id}: choices 必须是数组`)
+    if (sc.text != null && typeof sc.text !== 'string') errs.push(`${id}: text 必须是字符串`)
+    if (sc.audio != null && typeof sc.audio !== 'string') errs.push(`${id}: audio 必须是字符串`)
+    if (sc.onEnter != null && !isPlainObject(sc.onEnter)) errs.push(`${id}: onEnter 必须是对象`)
+    if (!Array.isArray(sc.choices)) continue
+    sc.choices.forEach((ch, i) => {
+      if (!isPlainObject(ch)) { errs.push(`${id}.choices[${i}]: 选项必须是对象`); return }
+      if (typeof ch.goto !== 'string' || !ch.goto) errs.push(`${id}.choices[${i}]: 缺少 goto（必须是字符串）`)
+      if (ch.if != null && typeof ch.if !== 'string') errs.push(`${id}.choices[${i}]: if 必须是字符串`)
+      if (ch.do != null && !isPlainObject(ch.do)) errs.push(`${id}.choices[${i}]: do 必须是对象`)
+    })
+  }
+  return errs
+}
+
 function loadPack(path) {
   const raw = readFileSync(resolve(path), 'utf8')
   const pack = JSON.parse(raw)
-  if (!pack.scenes || typeof pack.scenes !== 'object') {
-    throw new Error('场景包缺少 scenes 字段')
+  if (!isPlainObject(pack.scenes)) {
+    throw new Error('场景包缺少 scenes 字段（或类型不是普通对象）')
+  }
+  const errs = validatePack(pack)
+  if (errs.length) {
+    throw new Error(`场景包结构校验失败（${errs.length} 项）:\n  - ${errs.join('\n  - ')}`)
   }
   return pack
 }
 
-// ── P0 + DSE 内容校验（移植自 dict-scene-engine/lint-content.mjs 的 7 项检查）──
+// ── P0 + DSE 内容校验（移植自 dict-scene-engine/lint-content.mjs，并补齐可玩性检查）──
 //   errors（阻断级，lint 退出码 1）：
-//     · dangling_goto        悬空跳转（goto 指向不存在的场景）
-//     · ending_reachability  结局不可达（场景走不到任何结局）
-//     · undefined_var        插值变量未在 state 定义
-//     · fake_choice          伪分支（所有选项指向同一目标）
+//     · dangling_goto         悬空跳转（goto 指向不存在的场景）
+//     · missing_entry         入口场景不存在（可达性分析无从进行）
+//     · ending_reachability   结局不可达（场景走不到任何结局）
+//     · undefined_var         插值变量未在 state 定义
+//     · fake_choice           伪分支（所有选项指向同一目标）
+//     · choice_shape          choice 缺 goto / if 语法错误 / 字段类型错（补：使「0 阻断」⇒「play 不崩」）
+//     · unsafe_path           do / onEnter 的键含 __proto__ / constructor / prototype
+//     · conditional_dead_end  初始状态下所有选项的 if 均不满足（补：条件死局检测）
 //   warnings（规范级，不阻断）：
-//     · unreachable          不可达场景（从 entry BFS 无法到达）
-//     · id_naming            场景 ID 非小写 snake_case
-//     · content_thickness    正文过薄
+//     · unreachable           不可达场景（从 entry BFS 无法到达）
+//     · id_naming             场景 ID 非小写 snake_case
+//     · content_thickness     正文过薄
 const ID_RE = /^[a-z][a-z0-9_]*$/
 const MIN_TEXT_CHARS = 8
 const VAR_RE = /\{([a-zA-Z_]\w*)\}/g
@@ -86,7 +118,9 @@ function lint(pack) {
       warnings.push(`[不可达] 场景 ${id} 从 entry(${entry}) 无法到达`)
     }
   } else {
-    warnings.push(`[不可达] entry(${entry}) 不存在，跳过可达性分析`)
+    // 入口不存在 → 可达性与结局可达性都无从判断：升为阻断（原为 warning，
+    // 会让 meta.entry 悬空、结构损坏的包仍然报「0 阻断问题」）。
+    errors.push(`[无入口] entry(${entry}) 不存在，无法进行可达性与结局可达性分析`)
   }
 
   // 3. 结局可达性（每个非结局场景都应能走到某个结局）
@@ -143,6 +177,49 @@ function lint(pack) {
     const t = (sc.text ?? '').replace(/\{\w+\}/g, '').trim()
     if (!t) warnings.push(`[内容过薄] ${id}: 正文为空`)
     else if ([...t].length < MIN_TEXT_CHARS) warnings.push(`[内容过薄] ${id}: 正文仅 ${[...t].length} 字`)
+  }
+
+  // 8. choice 形态 + if 语法 + 不安全路径
+  //    目的：让 lint 的「0 阻断」真正等价于「play 不会崩」。此前这三类问题
+  //    均为 lint 放行、直到 play 阶段才以 Error/TypeError 暴露。
+  for (const [id, sc] of Object.entries(pack.scenes)) {
+    const doKeys = new Set([
+      ...Object.keys(sc.onEnter ?? {}),
+      ...(sc.choices ?? []).flatMap((c) => Object.keys(c.do ?? {})),
+    ])
+    for (const k of doKeys) {
+      if (String(k).split('.').some((s) => UNSAFE_PATH_SEGMENTS.has(s))) {
+        errors.push(`[不安全路径] ${id}: 键 "${k}" 含保留段名（禁止原型链访问）`)
+      }
+    }
+    ;(sc.choices ?? []).forEach((ch, i) => {
+      if (ch.if != null) {
+        try { parseExpr(tokenizeExpr(String(ch.if))) }
+        catch (e) { errors.push(`[if语法] ${id}: choices[${i}] ${e.message}`) }
+      }
+    })
+  }
+
+  // 9. 条件死局：初始状态下所有选项的 if 均不满足 ⇒ 该场景永远走不下去。
+  //    仅当 if 引用的「根路径」全部存在于初始 state 时才判定，否则跳过——
+  //    以免误伤运行时才写入的标志（如 epilogue 依赖的 resolved，由 branch 的 do 写入）。
+  for (const [id, sc] of Object.entries(pack.scenes)) {
+    if (isEnding(id)) continue
+    const chs = sc.choices ?? []
+    if (chs.length === 0) continue
+    let allHidden = true
+    let decidable = true
+    for (const ch of chs) {
+      if (ch.if == null) { allHidden = false; break }
+      const roots = [...String(ch.if).matchAll(/[A-Za-z_][\w.]*/g)].map((m) => m[0].split('.')[0])
+      if (roots.some((r) => !stateKeys.has(r))) { decidable = false; break }
+      let ok = false
+      try { ok = evalCond(ch.if, pack.state ?? {}) } catch { decidable = false; break }
+      if (ok) { allHidden = false; break }
+    }
+    if (decidable && allHidden) {
+      errors.push(`[条件死局] ${id}: 初始状态下所有选项的 if 均不满足，无法继续`)
+    }
   }
 
   return { errors, warnings }
@@ -362,7 +439,7 @@ function cmdLint(pack) {
     for (const w of warnings) console.log('  - ' + w)
   }
   if (errors.length === 0) {
-    console.log(`OK: 0 阻断问题（7 项检查通过，${warnings.length} 项规范建议）`)
+    console.log(`OK: 0 阻断问题（9 项检查通过，${warnings.length} 项规范建议）`)
     process.exit(0)
   }
   console.log('阻断问题:')
@@ -402,9 +479,11 @@ async function cmdPlay(pack, inputArg) {
       // DSE if 条件引擎：按 if 过滤可见分支并重新编号
       const choices = (scene.choices ?? []).filter((c) => c.if == null || evalCond(c.if, state))
       if (choices.length === 0) {
+        // 死局：不再写入结局统计，并以非零码退出
+        // （此前会 exit 0 且把当前场景当作结局计入 saves/endings.json）
         console.log('\n[死局] 当前状态下没有任何可选分支（所有 if 条件均不满足）')
-        persist(cur, state, visited)
-        return 0
+        process.exitCode = 4
+        return
       }
       let pick
       if (inputs.length > idx) {
