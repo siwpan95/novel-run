@@ -52,7 +52,9 @@ novel-run/
 │   └── dse/*.js        # 复制自 DSE 仓库的内容包 + lint 移植说明（⚠️ 可执行 ESM，仅限可信来源）
 ├── corpus/*.json       # 联网搜索补齐的题材语料（含 infinite-flow-lore / lowmagic-lore）
 ├── packs/              # 生成产物（wuxia/historical/cultivation/infinite_flow/lowmagic/wuxia-dse + scale-pack 系列）
-├── saves/              # 运行时产物（last.json + cue-*.wav）—— 已 gitignore，不入库
+├── saves/              # 运行时产物（已 gitignore，不入库）
+│   ├── <pack名>/        #   每个 pack 独立：last.json（末次存档）+ endings.json（结局计数）
+│   └── cue-*.wav        #   程序化音效（各 pack 共用）
 └── measure_prose.py    # dev 工具：散文渲染质量测量（池规模 / 污染率抽查）
 ```
 
@@ -83,7 +85,7 @@ novel-run/
 | 决策点展开成 `choices` 分支 | `decision` 场景 2 选项 → `ending_a` / `ending_b` | novel 的 `BeatOrchestrator` 在决策节拍生成分支 |
 | 多结局可达 | `1,1,1,1`→ending_a；`1,1,1,2`→ending_b（e2e 双路径通过） | DSE 多结局统计 |
 | `do` 改写状态影响后续文本 | 选左路 → 结局插值出「灼热」 | 镜像 DSE `do` 效果 |
-| 结局存档 + 统计 | play 结束写 `saves/last.json`，打印经历场景数 | DSE `save.js` |
+| 结局存档 + 统计 | play 结束写 `saves/<pack名>/last.json`，打印经历场景数 | DSE `save.js` |
 
 ### 移植的 DSE 内容校验（`run/runtime.js:lint`，共 9 项）
 
@@ -184,8 +186,12 @@ novel-run/
 
 - 生成期：每个场景包在 `meta` 写入 `worlds` / `n_endings` / `ending_stats`（每路 `id`/`label`/`pov`/`mood`/`resolved`），
   并打印摘要「共 N 路，已收束 X / 未收束 Y」。
-- 运行期：每次 `play` 抵达结局时 `persist()` 累计写入 `saves/endings.json`（按结局 id 计数）；
-  `node run/runtime.js stats --pack P` 打印各结局次数与总游玩数（N 路结局统计）。
+- 运行期：每次 `play` 抵达结局时 `persist()` 累计写入 **`saves/<pack名>/endings.json`**（按结局 id 计数，
+  **按 pack 隔离**，避免不同包的结局互相污染）；`node run/runtime.js stats --pack P` 打印各结局次数与总游玩数。
+  - 存储细节：写入采用**临时文件 + `rename` 原子替换**（避免读到写了一半的文件）；
+  - **清空保护**：计数文件解析失败或结构非法时**跳过写入并告警**，不会把历史清零后覆盖；
+  - 可用环境变量 `NOVEL_RUN_SAVES=<dir>` 覆盖存档根目录（便于测试 / CI 隔离）。
+  - ⚠️ 已知限制：不使用文件锁，**并发游玩**同一 pack 时计数可能丢更新（实测 8 进程并发最终计数 < 8，但文件不会损坏）。
 
 ### 真/暗线后续分支（N 路结局的 `resolved` 标志 → 运行时分歧）
 
@@ -272,7 +278,7 @@ node run/runtime.js lint   --pack packs/scale-stress.json   # 0 阻断
 node run/e2e_scale.js                                    # 默认测 default + stress
 node run/e2e_scale.js packs/scale-4e3w.json              # 4 结局 / 3 世界 组合
 
-# 8) N 路结局统计 + 真/暗线分流累计（来自 saves/endings.json）
+# 8) N 路结局统计 + 真/暗线分流累计（来自 saves/<pack名>/endings.json）
 node run/runtime.js play  --pack packs/scale-pack.json --input "$(python -c 'print(",".join(["1"]*52))')"   # 累计 epilogue_true +1
 node run/runtime.js play  --pack packs/scale-pack.json --input "$(python -c 'print(",".join(["1"]*49)+",2,1,1")')"   # 累计 epilogue_false +1
 node run/runtime.js stats --pack packs/scale-pack.json   # 打印真/暗线终局次数 + 总游玩数
@@ -328,6 +334,7 @@ node run/runtime.js stats --pack packs/scale-pack.json   # 打印真/暗线终�
   ③ `scene.audio` 未经白名单即拼入文件名，可经 `..` 越界写 `.wav`，且 `audio:"constructor"` 会触发未捕获崩溃；
   ④ lint 不校验结构与 `if` 语法、`meta.entry` 悬空被降级为警告、条件死局检测缺失。
   当前 9 个 pack 全部 **0 阻断**、`npm test` 全绿（62/62 断言）。
+- ✅ **存档层已加固**：`saves/` **按 pack 隔离**到子目录（不再共用一份 `endings.json`）；写入改为**临时文件 + rename 原子替换**；计数文件损坏 / 结构非法时**跳过写入并告警**，不再静默清空历史；可用 `NOVEL_RUN_SAVES=<dir>` 覆盖存档根目录。已知限制：无文件锁，**并发**游玩同一 pack 可能丢计数（文件不会损坏）。
 - ✅ **散文渲染质量已复核**：`scene_frame` 模板生效数由 **4/7 修复为 7/7**（补齐 `{auditory}`/`{adj}` 槽位 + 准入改为槽位白名单校验）；hook 与术语池补 URL/广告/版权过滤；`measure_prose.py` 检测口径补齐后，实测污染率仍为 **0.00%**。
 - ✅ **已纳入版本控制**：`https://gitee.com/siwpan/novel-run`（MIT）。`.gitignore` 排除 `saves/`、`.workbuddy/`、`__pycache__/`、`*.bak*`；上游素材来源与许可见 `reference/PROVENANCE.md`。
 - ✅ P0/P1/P2 全跑通；**五题材 + 真实 DSE 内容包共 6 个包 lint 0 阻断问题**；e2e 全断言通过（五题材各 10 项 + wuxia-dse 校验 + if/do 引擎 10 项）。

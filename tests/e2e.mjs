@@ -104,7 +104,9 @@ assert(dinfo.scenes === 16, `wuxia-dse: 场景数=16 (实际 ${dinfo.scenes})`)
 
 // ── wuxia-dse if/do 条件引擎（复刻 DSE 的 flags/items 表达式求值）──
 console.log('\n========== [wuxia-dse] if/do 条件引擎 ==========')
-const dseState = () => JSON.parse(readFileSync(resolve(ROOT, 'saves', 'last.json'), 'utf8')).state
+// 存档自「批次 4」起按 pack 名隔离到 saves/<packKey>/（packKey = pack 文件名去扩展名）
+const DSE_KEY = 'wuxia-dse'
+const dseState = () => JSON.parse(readFileSync(resolve(ROOT, 'saves', DSE_KEY, 'last.json'), 'utf8')).state
 
 // 路径 A：买解药(gold-10) → 撒迷粉(flags.dirtyFight) → 胜 → end-mutual
 const dA = run(NODE, ['run/runtime.js', 'play', '--pack', DSE, '--input', '2,1,1,1,2,1,1'])

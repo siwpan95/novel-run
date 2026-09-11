@@ -13,14 +13,39 @@
 //   node runtime.js play --input "1,1,1,1"
 //   node runtime.js stats                      # N 路结局跨游玩统计
 
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
-import { resolve, dirname } from 'node:path'
+import { readFileSync, writeFileSync, mkdirSync, renameSync } from 'node:fs'
+import { resolve, dirname, basename } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createInterface } from 'node:readline/promises'
 import { sound } from './sound.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const SAVES = resolve(__dirname, '..', 'saves')
+
+// 存档根目录：默认 <repo>/saves；可用 NOVEL_RUN_SAVES 覆盖（便于测试/CI 隔离）。
+// 各 pack 的存档按 pack 名隔离到子目录（见 savesDir），音效 WAV 仍写在根目录。
+const SAVES = process.env.NOVEL_RUN_SAVES
+  ? resolve(process.env.NOVEL_RUN_SAVES)
+  : resolve(__dirname, '..', 'saves')
+
+// ── 存档隔离与原子写 ──
+// 背景：此前所有 pack 共用一个 saves/endings.json，导致
+//   ① 不同 pack 的结局计数互相污染（实测出现过 admin/gateA 等陌生键）；
+//   ② 读-改-写无保护，并发/重入会丢更新；
+//   ③ 解析失败时 `catch { tally = {} }` 会静默把历史清零后覆盖写回。
+function packKey(packPath) {
+  const base = basename(String(packPath)).replace(/\.json$/i, '')
+  return base.replace(/[^A-Za-z0-9._-]/g, '_') || 'default'
+}
+
+function savesDir(key) {
+  return resolve(SAVES, key)
+}
+
+function writeJsonAtomic(path, obj) {
+  const tmp = `${path}.tmp`
+  writeFileSync(tmp, JSON.stringify(obj, null, 2))
+  renameSync(tmp, path)   // 同目录 rename 为原子操作，避免写一半被读到
+}
 
 // ── P0：惰性加载（非 import） ──
 // packs/*.json 是不可信输入：结构非法的包此前会让 lint/play 以 TypeError 崩栈
@@ -463,7 +488,7 @@ function cmdLint(pack) {
   process.exit(1)
 }
 
-async function cmdPlay(pack, inputArg) {
+async function cmdPlay(pack, inputArg, key) {
   const state = { ...(pack.state ?? {}) }
   let cur = pack.meta?.entry ?? 'start'
   const visited = []
@@ -487,7 +512,7 @@ async function cmdPlay(pack, inputArg) {
 
       if (isEnding(scene)) {
         console.log(`\n[结局] 抵达 ${cur}（共经历 ${visited.length} 个场景）`)
-        persist(cur, state, visited)
+        persist(key, cur, state, visited)
         return 0
       }
 
@@ -528,29 +553,46 @@ async function cmdPlay(pack, inputArg) {
   }
 }
 
-function persist(ending, state, visited) {
+function persist(key, ending, state, visited) {
+  const dir = savesDir(key)
   try {
-    mkdirSync(SAVES, { recursive: true })
-    writeFileSync(resolve(SAVES, 'last.json'),
-      JSON.stringify({ ending, state, visited }, null, 2))
-    // N 路结局统计：跨游玩累计计数（saves/endings.json）
-    const tallyPath = resolve(SAVES, 'endings.json')
-    let tally = {}
-    try { tally = JSON.parse(readFileSync(tallyPath, 'utf8')) } catch { tally = {} }
+    mkdirSync(dir, { recursive: true })
+    writeJsonAtomic(resolve(dir, 'last.json'), { ending, state, visited })
+    // N 路结局统计：按 pack 隔离 + 原子写 + 损坏保护
+    const tallyPath = resolve(dir, 'endings.json')
+    let tally
+    try {
+      tally = JSON.parse(readFileSync(tallyPath, 'utf8'))
+    } catch (e) {
+      if (e.code === 'ENOENT') tally = {}          // 该 pack 首次游玩
+      else throw new Error(`计数文件损坏（${tallyPath}）：${e.message} —— 已跳过写入，避免清空历史`)
+    }
+    if (!isPlainObject(tally)) {
+      throw new Error(`计数文件结构非法（${tallyPath}）—— 已跳过写入，避免清空历史`)
+    }
     tally[ending] = (tally[ending] ?? 0) + 1
-    writeFileSync(tallyPath, JSON.stringify(tally, null, 2))
-    console.log(`[存档] saves/last.json  ·  结局计数 ${ending} = ${tally[ending]}`)
+    writeJsonAtomic(tallyPath, tally)
+    console.log(`[存档] saves/${key}/last.json  ·  结局计数 ${ending} = ${tally[ending]}`)
   } catch (e) {
     console.log(`[存档跳过] ${e.message}`)
   }
 }
 
-// N 路结局统计：读取 saves/endings.json 累计计数，对照包内结局场景
-function cmdStats(pack) {
+// N 路结局统计：读取 saves/<pack>/endings.json 的累计计数，对照包内结局场景
+function cmdStats(pack, key) {
+  const tallyPath = resolve(savesDir(key), 'endings.json')
   let tally = {}
-  try { tally = JSON.parse(readFileSync(resolve(SAVES, 'endings.json'), 'utf8')) } catch { tally = {} }
+  let corrupt = null
+  try {
+    const parsed = JSON.parse(readFileSync(tallyPath, 'utf8'))
+    if (isPlainObject(parsed)) tally = parsed
+    else corrupt = '结构非法（非对象）'
+  } catch (e) {
+    if (e.code !== 'ENOENT') corrupt = e.message
+  }
   const endings = Object.entries(pack.scenes).filter(([, s]) => isEnding(s)).map(([id]) => id)
-  console.log('N 路结局统计（saves/endings.json 跨游玩累计）:')
+  console.log(`N 路结局统计（saves/${key}/endings.json 跨游玩累计）:`)
+  if (corrupt) console.log(`  ⚠️ 计数文件无法解析（${corrupt}）—— 仅显示包内结局定义，不做写入`)
   if (!endings.length) { console.log('  该包无结局场景'); return }
   for (const id of endings) {
     const sc = pack.scenes[id]
@@ -573,13 +615,14 @@ async function main() {
     else if (args[i] === '--input') inputArg = args[++i]
   }
   const pack = loadPack(packPath)
+  const key = packKey(packPath)   // 存档按 pack 名隔离到 saves/<key>/
 
   switch (cmd) {
     case 'info':   return cmdInfo(pack)
     case 'scenes': return cmdScenes(pack)
     case 'lint':   return cmdLint(pack)
-    case 'play':   return await cmdPlay(pack, inputArg)
-    case 'stats':  return cmdStats(pack)
+    case 'play':   return await cmdPlay(pack, inputArg, key)
+    case 'stats':  return cmdStats(pack, key)
     default:
       console.log('用法: node runtime.js <info|scenes|lint|play|stats> --pack P [--input "1,2"]')
       process.exit(1)
