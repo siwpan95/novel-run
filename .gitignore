@@ -17,6 +17,26 @@ __pycache__/
 _fix_tmp/
 _qa_tmp/
 _sec_tmp/
+# 2026-09-28 补：与上面三个同类却漏覆盖 —— 见下节说明
+_prov_tmp/
+_recon_*.txt
+_baseline.txt
+_verify.txt
+
+# ── 安全验证产物（2026-09-28 补）──
+# `_sec_poc/` 含**故意构造的恶意样本**（evil-content-pack.js / PWNED_BY_IMPORT.txt /
+# expr/ 下 18 个攻击载荷 JSON）。它们游离在跟踪面外只是"目录恰好没被忽略"，
+# 一旦有人跑 `git add -A` 就会被提交进**公开仓** —— 故显式忽略。
+_sec_poc/
+# `_sec_out/` 是过程输出（含 400 KB 级 poc_results.txt），
+# 但其中 security-audit-report.md 是**具名交付物**，必须入库 ⇒ 用"排除内容 + 反排除单文件"。
+# ⚠ 必须写 `**/` 前缀：gitignore 里**含内部斜杠的模式锚定在 .gitignore 所在目录**，
+#   写成 `_sec_out/*` 只会匹配仓根的 `_sec_out/`，对本仓 `docs/_sec_out/` 无效（本次实测踩到）。
+**/_sec_out/*
+!**/_sec_out/security-audit-report.md
+
+# ── 交付物（必须入库，勿忽略）──
+!docs/deliverables/
 
 # ── 编辑器 / 系统 ──
 .vscode/
