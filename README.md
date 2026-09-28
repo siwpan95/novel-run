@@ -322,7 +322,11 @@ node run/runtime.js stats --pack packs/scale-pack.json   # 打印真/暗线终�
 
 > 注：`run/package.json` 的示例脚本原指向不存在的 `packs/demo-pack.json`，现 `info`/`lint` 指向 `packs/scale-pack.json`，`play` 指向 `packs/wuxia.json`（4 个输入即可通关；`scale-pack` 需 52 个）。`run/runtime.js` 内置默认包同样已改为 `packs/scale-pack.json`，且 **`--pack` 路径以仓库根为基准解析**（不再依赖当前工作目录），因此 `run/` 下的脚本写 `packs/scale-pack.json` 而非 `../packs/…`（绝对路径亦可用）。`run/runtime.js` 已加 `#!/usr/bin/env node` shebang，可经 `bin: { "novel-run": "./run/runtime.js" }` 直接调用。
 
-**每小时自动化校验**：已配置 WorkBuddy 自动化（id `72e6b4ca-…`，工作目录 `G:/local/novel-run`），规则为每小时跑一遍 `e2e_scale.js`（默认包 + `--endings 4 --worlds 3`）与真/暗线实玩（`52×"1"` → `epilogue_true`、`49×"1",2,1,1` → `epilogue_false`），再用 `node run/runtime.js stats` 汇报；执行记录追加到 `.workbuddy/memory/automations/72e6b4ca-…/memory.md`。首次已实跑干验证（5 步全部退出码 0，e2e 全过、真/暗线均抵达对应终局）。
+**每小时自动化校验**：已配置 WorkBuddy 自动化（id `72e6b4ca-…`，工作目录 `G:/repos/novel-run`），规则为每小时跑一遍 `e2e_scale.js`（默认包 + `--endings 4 --worlds 3`）与真/暗线实玩（`52×"1"` → `epilogue_true`、`49×"1",2,1,1` → `epilogue_false`），再用 `node run/runtime.js stats` 汇报；执行记录追加到 `.workbuddy/memory/automations/72e6b4ca-…/memory.md`。首次已实跑干验证（5 步全部退出码 0，e2e 全过、真/暗线均抵达对应终局）。
+
+> ⚠ **目录已迁移（2026-09-28）**：本仓由 `G:/local/novel-run` **并入 `G:/repos/novel-run`**（统一"一仓一目录"，搬前 `ls-remote` 已核 IN_SYNC）。
+> **该 WorkBuddy 自动化的 `cwd` 是仓外配置，需在 WorkBuddy 侧同步改为新路径**，否则自动化会在已不存在的目录里执行。
+> 另据 `docs/deliverables/gstack/pre-launch-check-novel-run-2026-09-11.md` 第 11 条，该自动化当时 **status=PAUSED**（未运行），请一并确认它是暂停还是需要恢复。
 
 > ⚠️ **当前状态：PAUSED（未在运行）**。本文档此前表述为「每小时跑一遍」（暗示运行中），与实况不符，已订正。需要恢复请到 WorkBuddy 自动化面板启用该条目。
 
