@@ -5,7 +5,7 @@
 > 本仓在 siwpan 投资组合（D:/projects/repos，共 133 仓）中定级为 **② 保留**，领域 **小说/网文**。
 > **角色**：叙事验证。
 > **维护策略**：② 旗舰 / 枢纽仓库打磨保留，作为能力展示或收敛点；② 保留类仓库低优先维持、不主动扩张。
-> 投资组合统一分级索引：`D:/projects/repos/PORTFOLIO_TIERING.md`。
+> 投资组合统一分级索引（多机可查）：[组合分级决策索引 · allin 事实源](https://gitee.com/siwpan/allin/blob/master/docs/事实源/组合分级决策索引.md)。
 
 > 目的：在**不触碰** `dict-scene-engine`（DSE）与 `novel` 两个真实仓库源码的前提下，
 > 用一套最小自包含项目验证「novel 生成器 ↔ DSE 运行时」的落地路线，并把**两个真实仓库的
