@@ -23,7 +23,7 @@ const ROOT = resolve(__dirname, '..')
 
 const PYTHON_CANDIDATES = [
   'C:/Users/13122/.workbuddy/binaries/python/versions/3.13.12/python.exe',
-  'F:/Python314/python.exe',
+  'python',
   'python3',
   'python',
 ]

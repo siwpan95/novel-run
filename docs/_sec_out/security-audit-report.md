@@ -3,7 +3,7 @@
 - **审计模式**：Comprehensive（14 阶段全执行）
 - **日期**：2026-09-11
 - **被审对象**：`G:\local\novel-run`（121 文件 / 58.85 MB，非 git 仓库）
-- **运行时**：Node 22.22.2-3 · Python 3.14（`F:\Python314\python.exe`）
+- **运行时**：Node 22.22.2-3 · Python 3.14（`/Python314/python.exe`）
 - **原则**：每条结论均配 `file:line` + 可复现实跑 PoC；只读审计，未修改任何源码文件
 - **只读性证据**：14 个源文件 mtime 与审计开始时逐项一致（`_sec_out\integrity.txt`），差异仅来自 `saves/`（运行时产物，被 play/e2e 覆写，已复原为 802B/81B）
 
