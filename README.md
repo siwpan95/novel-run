@@ -364,3 +364,10 @@ node run/runtime.js stats --pack packs/scale-pack.json   # 打印真/暗线终�
     ③ `scene.audio` 先经 cue 白名单才拼文件名 —— 否则可经 `..` 把 `.wav` **写到项目目录之外**。
   - ⚠️ **唯一例外**：`scripts/convert-dse.mjs` 会 `await import()` **真正执行** `reference/dse/*.js`（上游对 `content/` 的标注即「可执行 ESM 模块，只装可信来源」）。该脚本应视为 dev-only 工具，不要对来源不明的文件运行。
 - 📄 **上游素材来源与许可**：见 `reference/PROVENANCE.md`（`siwpan/novel` 与 `siwpan/dict-scene-engine`，均为 MIT）。
+
+## 许可
+
+- MIT，见 [LICENSE](LICENSE)。
+- 上游素材来源与许可见 `reference/PROVENANCE.md`（均为 MIT）。
+
+<!-- 补写记账：novel-run · 本段由 allin 仓 tools/publish_area_license_fields.py 依据本仓 LICENSE 实读补写 -->
